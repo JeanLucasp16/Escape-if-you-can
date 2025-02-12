@@ -11,7 +11,7 @@ pygame.init()
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 450
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Esquiva de Obstáculos")
+pygame.display.set_caption("Escape if you can")
 
 # Cores
 WHITE = (255, 255, 255)
@@ -138,7 +138,7 @@ def show_main_menu():
         screen.blit(menu_background, (0, 0))
 
         title_font = pygame.font.SysFont(None, 100)
-        title_text = title_font.render("Space Panda", True, WHITE)
+        title_text = title_font.render("Escape if you can", True, WHITE)
         screen.blit(title_text, (SCREEN_WIDTH // 2 - title_text.get_width() // 2, 100))
 
         new_game_rect = pygame.Rect(SCREEN_WIDTH // 2 - 100, 300, 200, 50)
@@ -257,7 +257,9 @@ def game_loop(level, total_score=0):
     start_time = time.time()
     level_duration = 30
     spawn_obstacle_event = pygame.USEREVENT + 1
-    pygame.time.set_timer(spawn_obstacle_event, 1000)
+
+    # Use a random timer interval for spawning obstacles
+    pygame.time.set_timer(spawn_obstacle_event, random.randint(800, 1500))
 
     all_sprites = pygame.sprite.Group()
     obstacles = pygame.sprite.Group()
@@ -280,7 +282,7 @@ def game_loop(level, total_score=0):
         # Lógica específica do Level 2
         if level == 2:
             if elapsed_time >= 15 and not extra_obstacle_added:
-                pygame.time.set_timer(spawn_obstacle_event, 500)
+                pygame.time.set_timer(spawn_obstacle_event, random.randint(400, 800))
                 extra_obstacle_added = True
                 obstacle_speed += 3  # Aumenta velocidade adicional
 
@@ -293,16 +295,15 @@ def game_loop(level, total_score=0):
 
             if event.type == spawn_obstacle_event:
                 # Spawn de obstáculos baseado no nível
-                img1 = obstacle_images[level][0]
-                img2 = obstacle_images[level][1]
+                num_obstacles = random.randint(2, 4) if level == 1 else random.randint(3, 5)  # Mais obstáculos
+                for _ in range(num_obstacles):
+                    img = random.choice(obstacle_images[level])
+                    obstacle = Obstacle(obstacle_speed, img)
+                    all_sprites.add(obstacle)
+                    obstacles.add(obstacle)
 
-                obstacle1 = Obstacle(obstacle_speed, img1)
-                obstacle2 = Obstacle(obstacle_speed, img2)
-
-                all_sprites.add(obstacle1)
-                all_sprites.add(obstacle2)
-                obstacles.add(obstacle1)
-                obstacles.add(obstacle2)
+                # Reset the timer with a new random interval
+                pygame.time.set_timer(spawn_obstacle_event, random.randint(800, 1500) if level == 1 else random.randint(400, 800))
 
             if event.type == pygame.USEREVENT + 2:
                 player.invincible = False
@@ -324,7 +325,8 @@ def game_loop(level, total_score=0):
         screen.blit(backgrounds[level], (0, 0))
         all_sprites.draw(screen)
 
-        font = pygame.font.SysFont(None, 55)
+        # Ajuste do tamanho da fonte para informações do jogo
+        font = pygame.font.SysFont(None, 40)
         texts = [
             f"Tempo: {int(level_duration - elapsed_time)}",
             f"Pontuação: {score + total_score}",
@@ -333,7 +335,7 @@ def game_loop(level, total_score=0):
         ]
 
         for i, text in enumerate(texts):
-            screen.blit(font.render(text, True, WHITE), (10, 10 + i * 50))
+            screen.blit(font.render(text, True, WHITE), (10, 10 + i * 40))
 
         pygame.display.flip()
         clock.tick(60)
