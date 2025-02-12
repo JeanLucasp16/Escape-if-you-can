@@ -2,6 +2,7 @@ import pygame
 import random
 import os
 import time
+import json
 
 # Inicialização do Pygame
 pygame.init()
@@ -48,8 +49,23 @@ collision_sound = pygame.mixer.Sound(os.path.join("assets", "collision.mp3"))
 clock = pygame.time.Clock()
 
 # Variáveis globais
-high_scores = [0, 0, 0]
+high_scores = []
 
+# Funções para salvar e carregar scores
+def save_scores(scores):
+    with open("high_scores.json", "w") as file:
+        json.dump(scores, file)
+
+def load_scores():
+    global high_scores
+    try:
+        with open("high_scores.json", "r") as file:
+            high_scores = json.load(file)
+    except FileNotFoundError:
+        high_scores = []
+
+# Carregar scores ao iniciar o jogo
+load_scores()
 
 # =============================================
 # Classes do Jogo
@@ -132,7 +148,7 @@ def show_main_menu():
             pygame.mixer.music.stop()
             return 'new_game'
         if draw_button("High Scores", score_rect):
-            show_high_scores()
+            return 'high_scores'
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -144,24 +160,24 @@ def show_main_menu():
 
 
 def show_high_scores():
-    screen.fill(BLACK)
-    show_text("HIGH SCORES", YELLOW, -100)
-
-    # Exibe as pontuações salvas
-    font = pygame.font.SysFont(None, 60)
-    y = SCREEN_HEIGHT // 2 - 50
-
-    for i, score in enumerate(high_scores):
-        text = font.render(f"{i + 1}. {score}", True, WHITE)
-        screen.blit(text, (SCREEN_WIDTH // 2 - text.get_width() // 2, y))
-        y += 60
-
-    back_rect = pygame.Rect(SCREEN_WIDTH // 2 - 75, SCREEN_HEIGHT - 100, 150, 40)
-    if draw_button("Back", back_rect):
-        return
-
-    pygame.display.flip()
     while True:
+        screen.fill(BLACK)
+        show_text("HIGH SCORES", YELLOW, -100)
+
+        # Exibe as pontuações salvas
+        font = pygame.font.SysFont(None, 60)
+        y = SCREEN_HEIGHT // 2 - 50
+
+        for i, score in enumerate(high_scores):
+            text = font.render(f"{i + 1}. {score['name']}: {score['score']}", True, WHITE)
+            screen.blit(text, (SCREEN_WIDTH // 2 - text.get_width() // 2, y))
+            y += 60
+
+        back_rect = pygame.Rect(SCREEN_WIDTH // 2 - 75, SCREEN_HEIGHT - 100, 150, 40)
+        if draw_button("Back", back_rect):
+            return
+
+        pygame.display.flip()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -200,11 +216,34 @@ def show_end_screen(message, color, score):
                     return 'quit'
 
 
+def get_player_name():
+    name = ""
+    while True:
+        screen.fill(BLACK)
+        show_text("Digite seu nome:", WHITE, -50, 50)
+        show_text(name, YELLOW, 50, 50)
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                return None
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    return name
+                elif event.key == pygame.K_BACKSPACE:
+                    name = name[:-1]
+                else:
+                    name += event.unicode
+
+
 def save_score(score):
     global high_scores
-    high_scores.append(score)
-    high_scores.sort(reverse=True)
-    high_scores = high_scores[:3]  # Mantém apenas os 3 melhores scores
+    name = get_player_name()
+    if name:
+        high_scores.append({"name": name, "score": score})
+        high_scores = sorted(high_scores, key=lambda x: x["score"], reverse=True)[:3]
+        save_scores(high_scores)
 
 
 # =============================================
@@ -257,8 +296,13 @@ def game_loop(level, total_score=0):
                 img1 = obstacle_images[level][0]
                 img2 = obstacle_images[level][1]
 
-                all_sprites.add(Obstacle(obstacle_speed, img1))
-                all_sprites.add(Obstacle(obstacle_speed, img2))
+                obstacle1 = Obstacle(obstacle_speed, img1)
+                obstacle2 = Obstacle(obstacle_speed, img2)
+
+                all_sprites.add(obstacle1)
+                all_sprites.add(obstacle2)
+                obstacles.add(obstacle1)
+                obstacles.add(obstacle2)
 
             if event.type == pygame.USEREVENT + 2:
                 player.invincible = False
@@ -315,13 +359,20 @@ def main():
             if result == 'win':
                 show_level_transition(2)
                 result, total_score = game_loop(2, score)
+            else:
+                total_score = score
 
-            if result in ['quit', 'lose']:
-                save_score(total_score)  # Salva a pontuação
-                show_end_screen("GAME OVER" if result == 'lose' else "VITÓRIA!", RED, total_score)
+            if result in ['quit', 'lose', 'win']:
+                if result == 'lose':
+                    action = show_end_screen("GAME OVER", RED, total_score)
+                else:
+                    action = show_end_screen("YOU WIN", GREEN, total_score)
+                save_score(total_score)
 
-            if result == 'quit':
+            if action == 'quit':
                 break
+        elif action == 'high_scores':
+            show_high_scores()
 
     pygame.quit()
 
